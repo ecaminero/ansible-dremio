@@ -1,6 +1,9 @@
 # Ansible Project for Dremio
 
-This project uses Ansible to automate the deployment and configuration of a system.
+The Dremio Unified Lakehouse Platform lets you connect, govern, and analyze all of your data, both in the cloud and on-premises.
+
+![Dremio](docs/img/dremio-ecosystem-dark-2048x1052.png)
+
 
 ## Requirements
 * [Ansible](https://www.ansible.com/)
@@ -11,17 +14,17 @@ This project uses Ansible to automate the deployment and configuration of a syst
 ## Project Structure
 - `ansible.cfg`: Ansible configuration file.
 - `group_vars/`: Directory for group variable files.
-- `hosts`: Inventory file with hosts' information.
-- `inventory/inventory.gcp.yml`: GCP-specific inventory file.
+- `inventory/`: Directory for inventory files.
 - `misc/`: Directory for miscellaneous scripts.
 - `roles/`: Directory for roles. Each role has its own directory with tasks, handlers, files, and templates.
 - `site.yml`: Main playbook file.
 
+
 ## Roles
-- `common`: Role for common tasks.
-- `dremio`: Role for Dremio-related tasks.
-- `gcp_hosts`: Role for GCP hosts-related tasks.
-- `zookeeper`: Role for Zookeeper-related tasks.
+- `common` role includes tasks for setting up common configurations across all nodes. This includes installing Java and debugging tasks.
+- `dremio` role includes tasks for setting up Dremio coordinators and executors. It also includes tasks for setting up firewalld rules for Dremio.
+- `gcp_hosts` role includes tasks for setting up hosts in a Google Cloud Platform environment.
+- `zookeeper` role includes tasks for setting up Zookeeper.
 
 
 ## Requirements configuration for GCP

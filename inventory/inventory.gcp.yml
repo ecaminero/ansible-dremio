@@ -1,0 +1,17 @@
+plugin: google.cloud.gcp_compute
+projects: []
+zones:
+  - us-central1-a
+filters:
+  - status = RUNNING
+  - scheduling.automaticRestart = true AND status = RUNNING
+auth_kind: application
+keyed_groups:
+  - key: labels
+groups:
+  coordinator: "group_coordinator in name"
+hostnames:
+  - name
+compose:
+  ansible_host: selfLink
+  

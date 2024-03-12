@@ -1,0 +1,13 @@
+
+- name: Gather facts about GCP instances
+  ansible.builtin.setup:
+  register: setup_output
+
+- name: Create hosts file from all GCP instances
+  delegate_to: localhost
+  ansible.builtin.template:
+    src: hosts.j2
+    dest: "{{ playbook_dir }}/hosts"
+
+
+        

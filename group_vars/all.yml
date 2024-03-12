@@ -1,0 +1,12 @@
+ansible_ssh_args: --tunnel-through-iap --zone={{ zone }} --no-user-output-enabled
+ansible_scp_extra_args: --tunnel-through-iap --zone={{ zone }} --quiet
+
+dremio_file: dremio-community.noarch.rpm
+dremio_latest_url: https://download.dremio.com/community-server/dremio-community-LATEST.noarch.rpm
+dremio_version_url: https://download.dremio.com/community-server/24.3.2-202401241821100032-d2d8a497/dremio-community-24.3.2-202401241821100032_d2d8a497_1.noarch.rpm
+
+dremio_create_user_group: true
+dremio_group: dremio
+dremio_user: dremio
+dremio_local_path: /data
+

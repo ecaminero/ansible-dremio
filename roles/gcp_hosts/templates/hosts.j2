@@ -1,0 +1,11 @@
+{% macro generate_group(group_name, instance_group) %}
+[{{ group_name }}]
+{% for host in groups[instance_group] %}
+{{ hostvars[host]['name'] | replace('-', '') }} {{ hostvars[host]['ansible_default_ipv4']['address'] }}
+{% endfor %}
+{% endmacro %}
+
+{{ generate_group('dremio_servers', 'all') }}
+{{ generate_group('dremio_coordinator', '_group_coordinator') }}
+{{ generate_group('dremio_executor', '_group_executor') }}
+{{ generate_group('dremio_zookeeper', '_group_zookeeper') }}

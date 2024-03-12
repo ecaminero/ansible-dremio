@@ -1,0 +1,21 @@
+- name: Check if Java has been installed
+  ansible.builtin.stat:
+    path: /usr/bin/java
+  register: java_dir
+
+- name: Install the latest version of Java
+  become: yes
+  ansible.builtin.package:
+    name: java
+    state: present
+  when: not java_dir.stat.exists
+  
+- name: Get Java version
+  ansible.builtin.command:
+    cmd: java -version
+  register: java_version
+  ignore_errors: true
+
+- name: Print Java version
+  ansible.builtin.debug:
+    var: java_version.stderr_lines

@@ -1,0 +1,28 @@
+- include_tasks: java.yml
+- include_tasks: debug.yml
+
+- name: Display operating system name and version
+  ansible.builtin.debug:
+    msg: "Operating System: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+
+- name: Get total memory
+  ansible.builtin.shell:
+    cmd: "grep MemTotal /proc/meminfo | awk '{print $2/1024/1024 \" GB\"}'"
+  register: total_memory
+
+- name: Print total memory
+  ansible.builtin.debug:
+    msg: "Total memory: {{ total_memory.stdout }}"
+
+- name: Display CPU information
+  debug:
+    msg: "CPU Model: {{ ansible_processor }} - {{ ansible_processor_cores }} cores"
+    
+- name: Fetch disk space information
+  ansible.builtin.shell:
+    cmd: "df -h"
+  register: disk_space_info
+
+- name: Display disk space information
+  ansible.builtin.debug:
+    var: disk_space_info.stdout_lines

@@ -1,0 +1,91 @@
+- name: Create dremio group
+  become: yes
+  ansible.builtin.group:
+    name: '{{ dremio_group }}'
+    state: present
+    system: yes
+  when: dremio_create_user_group | bool
+
+- name: Create dremio user
+  become: yes
+  ansible.builtin.user:
+    name: '{{ dremio_user }}'
+    group: '{{ dremio_group }}'
+    state: present
+    createhome: no
+    system: yes
+  when: dremio_create_user_group | bool
+
+- name: Create /tmp/rpms directory
+  ansible.builtin.file: 
+    path: /tmp/rpms 
+    state: directory
+
+- name: Check if Dremio has been installed
+  ansible.builtin.stat:
+    path: /opt/dremio/bin/dremio
+  register: dremio_dir
+
+- name: Remove /tmp/rpms directory
+  become: yes
+  ansible.builtin.file: 
+    path: '/tmp/rpms/{{dremio_file}}'
+    state: absent
+  when: not dremio_dir.stat.exists
+
+- name: Download Dremio RPM file
+  ansible.builtin.get_url:
+    url: "{{dremio_latest_url}}"
+    dest: "/tmp/rpms/{{dremio_file}}"
+  register: dremio_downloaded
+  when: not dremio_dir.stat.exists
+
+- name: Dremio RPM file has been dowloaded
+  ansible.builtin.debug:
+    msg: "Dremio File has been dowloaded on /tmp/rpms/{{dremio_file}}"
+  when: dremio_downloaded.changed
+
+- name: Gather package facts
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: Installing Dremio package
+  become: yes
+  ansible.builtin.yum:
+    name: '/tmp/rpms/{{dremio_file}}'
+    state: present
+    disable_gpg_check: yes
+  register: dremio_installed
+  when: not dremio_dir.stat.exists
+
+- name: Print Dremio installation status
+  debug:
+    msg: "Dremio has been installed."
+  when: dremio_installed
+
+- name: Install firewall rules
+  ansible.builtin.include_tasks: firewalld.yml
+  when: (ansible_os_family == "RedHat" or ansible_os_family == "Rocky") and ansible_distribution_major_version == "8" and zookeeper_firewalld
+
+- name: "Create Dremio Data directory {{dremio_local_path}}"
+  become: yes
+  ansible.builtin.file:
+    path: "{{dremio_local_path}}"
+    state: directory
+    recurse: yes
+    mode: '0777'
+
+- name: Generate dremio environment file
+  become: yes
+  ansible.builtin.template:
+    src: dremio-env.j2
+    dest: /etc/dremio/dremio-env
+    group: '{{ dremio_group }}'
+    owner: '{{ dremio_user }}'
+    mode: 0755   
+
+- include_tasks: coordinator.yml
+  when: node_type == "coordinator"
+
+- include_tasks: executor.yml
+  when: node_type == "executor"

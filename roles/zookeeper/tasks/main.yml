@@ -1,0 +1,227 @@
+---
+- include_tasks: user.yml
+
+- name: Set zookeeper version variables
+  ansible.builtin.set_fact:
+    zookeeper_version_major: "{{ zookeeper_version.split('.')[0] }}"
+    zookeeper_version_minor: "{{ zookeeper_version.split('.')[1] }}"
+
+- name: Check if ZooKeeper has already been downloaded
+  ansible.builtin.stat:
+    path: '{{ zookeeper_install_dir }}'
+  register: dir
+
+- name: Download Apache ZooKeeper
+  ansible.builtin.get_url:
+    url: '{{ zookeeper_mirror }}/zookeeper-{{ zookeeper_version }}/{{ zookeeper_package }}'
+    dest: /tmp
+    mode: 0644
+  when: not dir.stat.exists
+  tags:
+    - zookeeper_download
+
+- name: Create ZooKeeper installation dir {{ zookeeper_install_dir }}
+  become: yes
+  ansible.builtin.file:
+    path: '{{ zookeeper_install_dir }}'
+    state: directory
+    group: '{{ zookeeper_group }}'
+    owner: '{{ zookeeper_user }}'
+    mode: 0755
+  when: not dir.stat.exists
+  tags:
+    - zookeeper_dirs
+
+- name: Unpack Apache ZooKeeper
+  become: yes
+  ansible.builtin.unarchive:
+    src: /tmp/{{ zookeeper_package }}
+    dest: '{{ zookeeper_install_dir }}'
+    copy: no
+    extra_opts: [--strip-components=1]
+    group: '{{ zookeeper_group }}'
+    owner: '{{ zookeeper_user }}'
+  when: not dir.stat.exists
+  tags:
+    - zookeeper_unpack
+
+- name: Create symlink to ZooKeeper installation
+  become: yes
+  ansible.builtin.file:
+    src: '{{ zookeeper_install_dir }}'
+    dest: '{{ zookeeper_dir }}'
+    state: link
+    group: '{{ zookeeper_group }}'
+    owner: '{{ zookeeper_user }}'
+  tags:
+    - zookeeper_dirs
+
+- name: Create directory for snapshot files and myid file
+  become: yes
+  ansible.builtin.file:
+    path: '{{ zookeeper_data_dir }}'
+    state: directory
+    group: '{{ zookeeper_group }}'
+    owner: '{{ zookeeper_user }}'
+    mode: 0755
+  tags:
+    - zookeeper_dirs  
+
+- name: Check if Zookeeper directory for transaction log files is present
+  ansible.builtin.stat:
+    path: '{{ zookeeper_data_log_dir }}'
+  register: data_log_directory_check
+
+- name: Create directory for transaction log files
+  ansible.builtin.file:
+    path: '{{ zookeeper_data_log_dir }}'
+    state: directory
+    group: '{{ zookeeper_group }}'
+    owner: '{{ zookeeper_user }}'
+    mode: 0755
+  when: not data_log_directory_check.stat.exists
+  tags:
+    - zookeeper_dirs
+
+- name: Check if Zookeeper log directory
+  ansible.builtin.stat:
+    path: '{{ zookeeper_data_log_dir }}'
+  register: log_directory_check
+
+- name: Create zookeeper log directory
+  become: yes
+  ansible.builtin.file:
+    path: '{{ zookeeper_log_dir }}'
+    state: directory
+    group: '{{ zookeeper_group }}'
+    owner: '{{ zookeeper_user }}'
+    mode: 0755
+  tags:
+    - zookeeper_dirs
+
+- name: Create ZooKeeper configuration directory 
+  become: yes
+  ansible.builtin.file:
+    path: '{{ zookeeper_dir }}/conf'
+    state: directory
+    group: '{{ zookeeper_group }}'
+    owner: '{{ zookeeper_user }}'
+    mode: 0755
+  tags:
+    - zookeeper_dirs
+
+# /usr/share/zookeeper/conf/zoo.cfg is the default file ZooKeeper will use when starting
+- name: Template configuration file to zoo.cfg
+  become: yes
+  ansible.builtin.template:
+    src: zoo.cfg.j2
+    dest: '{{ zookeeper_dir }}/conf/zoo.cfg'
+    group: '{{ zookeeper_group }}'
+    owner: '{{ zookeeper_user }}'
+    mode: 0644
+  notify:
+    - Restart ZooKeeper service
+  tags:
+    - zookeeper_config
+
+- name: Create directory for symlink to ZooKeeper configuration file
+  become: yes
+  ansible.builtin.file:
+    path: /etc/zookeeper
+    state: directory
+    group: '{{ zookeeper_group }}'
+    owner: '{{ zookeeper_user }}'
+    mode: 0755
+  tags:
+    - zookeeper_config
+
+- name: Create symlink to ZooKeeper configuration file
+  become: yes
+  ansible.builtin.file:
+    src: '{{ zookeeper_dir }}/conf/zoo.cfg'
+    dest: /etc/zookeeper/zoo.cfg
+    state: link
+    group: '{{ zookeeper_group }}'
+    owner: '{{ zookeeper_user }}'
+  tags:
+    - zookeeper_config
+
+- name: Template myid file in {{ zookeeper_data_dir }}
+  become: yes
+  ansible.builtin.template:
+    src: myid.j2
+    dest: '{{ zookeeper_data_dir }}/myid'
+    group: '{{ zookeeper_group }}'
+    owner: '{{ zookeeper_user }}'
+    mode: 0644
+  notify:
+    - Restart ZooKeeper service
+  tags:
+    - zookeeper_config
+
+- name: Template /etc/default
+  become: yes
+  ansible.builtin.template:
+    src: default.j2
+    dest: '/etc/default/zookeeper'
+    group: '{{ zookeeper_group }}'
+    owner: '{{ zookeeper_user }}'
+    mode: 0644
+  notify:
+    - Restart ZooKeeper service
+  tags:
+    - zookeeper_config
+
+# Uncomment the log4j.properties line for setting the maximum number of logs to rollover and keep
+- name: Set maximum log rollover history
+  ansible.builtin.replace:
+    dest: '{{ zookeeper_dir }}/conf/log4j.properties'
+    regexp: '^#log4j.appender.ROLLINGFILE.MaxBackupIndex'
+    replace: 'log4j.appender.ROLLINGFILE.MaxBackupIndex'
+  notify:
+    - Restart ZooKeeper service
+  tags:
+    - zookeeper_config
+  when: zookeeper_version_major|int == 3 and zookeeper_version_minor|int < 8
+
+- name: Template ZooKeeper systemd service file
+  become: yes
+  ansible.builtin.template:
+    src: zookeeper.service.j2
+    dest: '{{ zookeeper_unit_path }}'
+    group: '{{ zookeeper_group }}'
+    owner: '{{ zookeeper_user }}'
+    mode: 0644
+  tags:
+    - zookeeper_service
+
+- name: Start the ZooKeeper service
+  become: yes
+  ansible.builtin.systemd:
+    name: zookeeper.service
+    state: started
+    enabled: yes
+  when: zookeeper_start
+  tags:
+    - zookeeper_service
+
+# Cleanup install by deleting downloaded ZooKeeper archive
+- name: Delete file /tmp/{{ zookeeper_package }}
+  ansible.builtin.file:
+    path: /tmp/{{ zookeeper_package }}
+    state: absent
+  tags:
+    - zookeeper_cleanup
+
+# Set Ansible fact that ZooKeeper has completed installation. This is so that this role can be used in
+# other dependent roles. Those roles can check for this fact to determine whether or not this role
+# should be run. Failing to do so will mean that this role is executed even if it has already been run.
+- name: Set fact zookeeper_installed
+  ansible.builtin.set_fact:
+    zookeeper_installed: true
+  tags:
+    - zookeeper_install_fact
+
+- name: Install firewall rules
+  ansible.builtin.include_tasks: firewalld.yml
+  when: (ansible_os_family == "RedHat" or ansible_os_family == "Rocky") and ansible_distribution_major_version == "8" and zookeeper_firewalld

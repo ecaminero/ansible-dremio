@@ -1,0 +1,26 @@
+- hosts: all
+  roles:
+  - role: common
+  - role: gcp_hosts
+  tags: common
+
+- hosts: _group_zookeeper
+  become_user: root
+  roles:
+  - role: zookeeper
+  tags: zookeeper
+
+- hosts: _group_coordinator
+  vars:
+    node_type: coordinator
+  roles:
+  - role: dremio
+  tags: coordinators
+
+- hosts: _group_executor
+  vars:
+    node_type: executor
+  roles:
+  - role: dremio
+  tags: executors
+

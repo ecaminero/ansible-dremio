@@ -1,0 +1,11 @@
+- name: Add firewalld rules
+  ansible.posix.firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    state: enabled
+  loop:
+    - 9047/tcp
+    - 32010/tcp
+    - 31010/tcp
+    - 45678/tcp
+  notify: Reload firewalld

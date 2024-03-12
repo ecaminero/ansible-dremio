@@ -1,0 +1,19 @@
+---
+- name: Restart Dremio service
+  ansible.builtin.systemd:
+    name: dremio.service
+    state: restarted
+    daemon_reload: yes
+  when: dremio_restart
+
+- name: Stop Dremio service
+  ansible.builtin.systemd:
+    name: dremio.service
+    state: stopped
+    daemon_reload: yes
+  when: dremio_installed
+
+- name: Reload firewalld
+  ansible.builtin.systemd:
+    name: firewalld
+    state: reloaded
